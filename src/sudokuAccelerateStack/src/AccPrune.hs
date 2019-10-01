@@ -59,10 +59,17 @@ pruneGrids' = mapSingles . fuseSudokus . prune . splitSudokus where
                                       else {- m == 2 -} let c = 3*i+(j`div`3); d = j`rem`3; c' = 9*(c`div`9) + 3*(c`rem`3) + (c`rem`9)`div`3 in
                                                           lift $ Z:.2:.n:.(c'`div`3):.(3*(c'`rem`3)+d)  -- blocks
   prune :: Acc (Array DIM4 Cell) -> Acc (Array DIM4 Cell)
-  prune xs = let ys = findSingles xs in A.imap (\(unindex4 -> (m, n, i, j)) x -> if testBit x 9 then x else x .&. (complement (ys ! lift (Z:.m:.n:.i)))) xs
-  findSingles :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell)
+  prune xs = let ys = findSingles xs; zs = findExclusives xs in A.imap (\(unindex4 -> (m, n, i, j)) x -> if testBit x 9 then x else ((zs ! lift (Z:.m:.n:.i)) .&?. x) .&. (complement (ys ! lift (Z:.m:.n:.i)))) xs
+  findSingles :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell) -- finds the squares with only 1 possibility
   findSingles = let f z = if testBit z 9 then z else 0 in map (`clearBit` 9) . fold1 (\x y -> f x .|. f y) 
   -- bit 9 represents a field having only 1 option left, here we .|. all those bits.
+  findExclusives :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell) -- finds the numbers that occur only in one square
+  findExclusives = map (fromIntegral @Word32 @Word16) . fold1 (\x y -> let unionOnes = (x.|.y).&.511;
+                                                                           overlapOnes =  x.&.y .&.511; 
+                                                                           unionMores = (x.|.y).&.33488896; 
+                                                                           overlapMores =  x.&.y .&.33488896;
+                                                                           newunionMores = (overlapOnes `shift` 16) .|. unionMores in 
+                                  (unionOnes - overlapOnes + newunionMores - overlapMores) .&. (complement (newunionMores `shift` (-16)))) . map (fromIntegral @Word16 @Word32)
   fuseSudokus :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell)
   -- permute again to have all three versions align, transpose to bring the dimension to fold over inside.
   fuseSudokus = fold1 (.&.) . transposeOn _2 _4 . transposeOn _2 _3 . transposeOn _1 _4 . (\xs -> permute const (fill (shape xs) undef) permutation xs)
@@ -75,4 +82,5 @@ unindex4 :: Exp DIM4 -> (Exp Int, Exp Int, Exp Int, Exp Int)
 unindex4 ix = let Z :. l :. k :. j :. i = unlift ix  :: Z :. Exp Int :. Exp Int :. Exp Int :. Exp Int
               in  (l, k, j, i)
 
-
+(.&?.) :: Exp Word16 -> Exp Word16 -> Exp Word16
+x .&?. y = let z = x.&.y in if z==0 then y else z
