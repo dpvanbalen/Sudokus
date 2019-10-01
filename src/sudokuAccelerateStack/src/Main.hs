@@ -7,7 +7,7 @@ import Utils
 import AccPrune
 import qualified Data.Array.Accelerate as A
 import qualified Data.Array.Accelerate.Interpreter as A
- 
+import Debug.Trace 
 
 main = interact $ pretty . solve . readSudoku
 
@@ -21,13 +21,13 @@ pretty (Just gr) = foldl f "\n" (sud gr) where
 
 
 solve :: [Word16] -> Maybe [Word16]
-solve gr = solve' [gr]
+solve gr = solve' (accelerateStep [gr])
   where
     solve' :: [[Word16]] -> Maybe [Word16]
     solve' [] = Nothing
     solve' xs = case find solved xs of
       Just solution -> Just solution
-      Nothing -> solve' . concat . map doGuess . accelerateStep $ xs
+      Nothing -> solve' . accelerateStep . concat . map doGuess $(\x -> trace (show (length x)) x) $ xs
     doGuess :: [Word16] -> [[Word16]]
     doGuess xs = let i = splitIndex xs in map (\j -> take i xs ++ j : drop (i+1) xs) (splitBits (xs !! i))
     splitIndex :: [Word16] -> Int
