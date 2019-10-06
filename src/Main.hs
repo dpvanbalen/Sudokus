@@ -7,7 +7,6 @@ import Utils
 import AccPrune
 import qualified Data.Array.Accelerate as A
 import qualified Data.Array.Accelerate.LLVM.Native as A
-import Debug.Trace 
 
 main = interact $ pretty . solve . readSudoku
 
@@ -27,7 +26,7 @@ solve gr = solve' (accelerateStep [gr])
     solve' [] = Nothing
     solve' xs = case find solved xs of
       Just solution -> Just solution
-      Nothing -> solve' . accelerateStep . concat . map doGuess $(\x -> trace (show (length x)) x) $ xs
+      Nothing -> solve' . accelerateStep . concat . map doGuess $ xs
     doGuess :: [Word16] -> [[Word16]]
     doGuess xs = let i = splitIndex xs in map (\j -> take i xs ++ j : drop (i+1) xs) (splitBits (xs !! i))
     splitIndex :: [Word16] -> Int
