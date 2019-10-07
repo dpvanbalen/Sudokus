@@ -6,8 +6,8 @@ import Data.List
 import Utils
 import AccPrune
 import qualified Data.Array.Accelerate as A
-import qualified Data.Array.Accelerate.LLVM.Native as A
-
+import qualified Data.Array.Accelerate.Interpreter as A
+import Debug.Trace
 main = interact $ pretty . solve . readSudoku
 
 
@@ -24,7 +24,7 @@ solve gr = solve' (accelerateStep [gr])
   where
     solve' :: [[Word16]] -> Maybe [Word16]
     solve' [] = Nothing
-    solve' xs = case find solved xs of
+    solve' xs = (trace (show (length xs))) $ case find solved xs of
       Just solution -> Just solution
       Nothing -> solve' . accelerateStep . concat . map doGuess $ xs
     doGuess :: [Word16] -> [[Word16]]

@@ -57,8 +57,8 @@ pruneGrids xs = mySnd $ awhile cond step ((lift :: Arrays a => (Acc a, Acc a) ->
 pruneGrids' :: Acc (Array DIM3 Cell) -> Acc (Array DIM3 Cell)
 pruneGrids' = mapSingles . fuseSudokus . pruneDoubles . pruneSingles . mapSingles . splitSudokus 
 
-splitSudokus :: Acc (Array DIM3 Cell) -> Acc (Array DIM4 Cell) 
-splitSudokus = {-weirdtransform .-} (\xs -> backpermute (shape xs) permutation xs) . (replicate (constant (Z:.i3:.All:.All:.All))) . map (`clearBit` 9) 
+splitSudokus :: Acc (Array DIM3 Cell) -> Acc (Array DIM5 Cell) 
+splitSudokus = splitweirdtransform . (\xs -> backpermute (shape xs) permutation xs) . (replicate (constant (Z:.i3:.All:.All:.All))) . map (`clearBit` 9) 
 
 permutation :: Exp DIM4 -> Exp DIM4 -- this permutation is a bijection, and its own inverse. This means we can use undef as the default values.
 permutation (unindex4 -> (m, n, i, j)) =    if m == 0 then lift $ Z:.0:.n:.i:.j                          -- rows
@@ -67,36 +67,36 @@ permutation (unindex4 -> (m, n, i, j)) =    if m == 0 then lift $ Z:.0:.n:.i:.j 
                                                            lift $ Z:.2:.n:.(c'`div`3):.(3*(c'`rem`3)+d)  -- blocks
 
 -- This part was a `smart idea` that I still don't understand why it doesn't work, and haven't quite given up on yet, but whenever I ran it with weirdtransform I got wrong answers.
-{-
-weirdtransform xs = (rep1 xs) ++ (rep1 $ weirdtransform' xs) -- adds another layer, bijecting between numbers and fields.
-unweirdtransform xs = let ys = slice xs (constant (Z:.All:.All:.All:.All:.i0)); 
-                          zs = slice xs (constant (Z:.All:.All:.All:.All:.i1)) in 
-   (rep1 ys) ++ (rep1 (weirdtransform' zs))
-weirdtransform' :: Acc (Array DIM4 Cell) -> Acc (Array DIM4 Cell) 
-weirdtransform' xs = let (ones,twos,threes,fours,fives,sixes,sevens,eights,nines) = (f 1,f 2,f 4,f 8,f 16,f 32,f 64,f 128,f 256); --weirdtransform' is also its own inverse, except for bit9
-                         f (x :: Exp Word16) = replicate (constant (Z:.All:.All:.All:.i1)) . fold1 (.|.) . A.imap (\(unindex4 -> (_,_,_,i)) y -> if x.&.y == 0 then 0 else setBit 0 i) $ xs;
+rep1 = replicate (constant (Z:.All:.All:.i1:.All:.All))
+splitweirdtransform = (\xs -> concatOn _3 (rep1 xs) (rep1 $ weirdtransform xs)) -- adds another layer, bijecting between numbers and fields.
+fuseweirdtransform xs = let ys = slice xs (constant (Z:.All:.All:.i0:.All:.All)); 
+                            zs = slice xs (constant (Z:.All:.All:.i1:.All:.All)) in 
+   zipWith (.&.) ys (weirdtransform zs)
+weirdtransform :: Acc (Array DIM4 Cell) -> Acc (Array DIM4 Cell) 
+weirdtransform xs = let (ones,twos,threes,fours,fives,sixes,sevens,eights,nines) = (f 0,f 1,f 2,f 3,f 4,f 5,f 6,f 7,f 8); --weirdtransform' is also its own inverse, except for bit9
+                         f (x :: Exp Int) = replicate (constant (Z:.All:.All:.All:.i1)) . fold1 (.|.) . A.imap (\(unindex4 -> (_,_,_,i)) y -> if testBit y x then 0 else setBit 0 i) $ xs;
                            in ones ++ twos ++ threes ++ fours ++ fives ++ sixes ++ sevens ++ eights ++ nines
-                 -}
+                 
 
-pruneSingles :: Acc (Array DIM4 Cell) -> Acc (Array DIM4 Cell)
-pruneSingles xs = let ys = replicate (constant (Z:.All:.All:.All:.i9)) (findSingles xs) in zipWith (\x y -> if testBit x 9 then x else x .&. (complement y)) xs ys
+pruneSingles :: Acc (Array DIM5 Cell) -> Acc (Array DIM5 Cell)
+pruneSingles xs = let ys = replicate (constant (Z:.All:.All:.All:.All:.i9)) (findSingles xs) in zipWith (\x y -> if testBit x 9 then x else x .&. (complement y)) xs ys
 
 -- bit 9 represents a field having only 1 option left, here we .|. all those bits.
-findSingles :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell) -- finds the squares with only 1 possibility
+findSingles :: Acc (Array DIM5 Cell) -> Acc (Array DIM4 Cell) -- finds the squares with only 1 possibility
 findSingles = map (`clearBit` 9) . fold1 (.|.) . map (\x -> if testBit x 9 then x else 0)
 
-fuseSudokus :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell)
-fuseSudokus = fold1 (.&.) . transposeOn _1 _4 . transposeOn _1 _3 . transposeOn _1 _2 . (\xs -> backpermute (shape xs) permutation xs) 
+fuseSudokus :: Acc (Array DIM5 Cell) -> Acc (Array DIM3 Cell)
+fuseSudokus = fold1 (.&.) . transposeOn _1 _4 . transposeOn _1 _3 . transposeOn _1 _2 . (\xs -> backpermute (shape xs) permutation xs) . fuseweirdtransform
 
 mapSingles  :: Shape a => Acc (Array a Cell) -> Acc (Array a Cell)
 mapSingles  = map (\x -> if popCount x == 1 then setBit x 9 else x) . map (`clearBit` 9)
 
-pruneDoubles :: Acc (Array DIM4 Cell) -> Acc (Array DIM4 Cell)
-pruneDoubles = (\xs -> let ys = replicate (constant (Z:.All:.All:.All:.i9)) (findDoubles xs) in 
+pruneDoubles :: Acc (Array DIM5 Cell) -> Acc (Array DIM5 Cell)
+pruneDoubles = (\xs -> let ys = replicate (constant (Z:.All:.All:.All:.All:.i9)) (findDoubles xs) in 
               zipWith (\x y -> if popCount x <= 2 {-&& x==x.&.y-} then x else x.&.(complement y)) xs ys) . map (`clearBit` 9) 
                  -- part commented out would be a speedup, but only safe if unDoubleIndexes could find all.
 
-findDoubles :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell)
+findDoubles :: Acc (Array DIM5 Cell) -> Acc (Array DIM4 Cell)
 findDoubles = map unDoubleIndexes . map (\(unlift -> (z1,z2,z3)::(Exp Word64, Exp Word64, Exp Word64)) -> z2 - z3) . fold1 (\(unlift -> (x1,x2,x3)) (unlift -> (y1,y2,y3)) -> 
                  lift (x1.|.y1, x2.|.y2.|.(x1.&.y1), x3.|.y3.|.(x1.&.y2).|.(x2.&.y1))) --(seen at least once, seen at least twice, seen more times)
                    . map (\x -> lift (x,0,0) :: Exp (Word64, Word64, Word64)) . map doubleIndexes
