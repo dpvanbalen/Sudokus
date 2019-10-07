@@ -68,13 +68,13 @@ permutation (unindex4 -> (m, n, i, j)) =    if m == 0 then lift $ Z:.0:.n:.i:.j 
 
 -- This part was a `smart idea` that I still don't understand why it doesn't work, and haven't quite given up on yet, but whenever I ran it with weirdtransform I got wrong answers.
 rep1 = replicate (constant (Z:.All:.All:.i1:.All:.All))
-splitweirdtransform = (\xs -> concatOn _3 (rep1 xs) (rep1 $ weirdtransform xs)) -- adds another layer, bijecting between numbers and fields.
+splitweirdtransform = (\xs -> concatOn _3 (rep1 $xs) (rep1 $ weirdtransform xs)) -- adds another layer, bijecting between numbers and fields.
 fuseweirdtransform xs = let ys = slice xs (constant (Z:.All:.All:.i0:.All:.All)); 
                             zs = slice xs (constant (Z:.All:.All:.i1:.All:.All)) in 
-   zipWith (.&.) ys (weirdtransform zs)
+   zipWith (.&.) (ys) (weirdtransform zs)
 weirdtransform :: Acc (Array DIM4 Cell) -> Acc (Array DIM4 Cell) 
 weirdtransform xs = let (ones,twos,threes,fours,fives,sixes,sevens,eights,nines) = (f 0,f 1,f 2,f 3,f 4,f 5,f 6,f 7,f 8); --weirdtransform' is also its own inverse, except for bit9
-                         f (x :: Exp Int) = replicate (constant (Z:.All:.All:.All:.i1)) . fold1 (.|.) . A.imap (\(unindex4 -> (_,_,_,i)) y -> if testBit y x then 0 else setBit 0 i) $ xs;
+                         f (x :: Exp Int) = replicate (constant (Z:.All:.All:.All:.i1)) . fold1 (.|.) . A.imap (\(unindex4 -> (_,_,_,i)) y -> if testBit y x then setBit 0 i else 0) $ xs;
                            in ones ++ twos ++ threes ++ fours ++ fives ++ sixes ++ sevens ++ eights ++ nines
                  
 
@@ -130,6 +130,9 @@ doubleIndexes i = if popCount i /= 2 then 0 else setBit 0 $ secondBit + (45 - sh
 
 
 
+unindex3 :: Exp DIM3 -> (Exp Int, Exp Int, Exp Int)
+unindex3 ix = let Z :. k :. j :. i = unlift ix  :: Z :. Exp Int :. Exp Int :. Exp Int
+              in  (k, j, i)
 
 unindex4 :: Exp DIM4 -> (Exp Int, Exp Int, Exp Int, Exp Int)
 unindex4 ix = let Z :. l :. k :. j :. i = unlift ix  :: Z :. Exp Int :. Exp Int :. Exp Int :. Exp Int

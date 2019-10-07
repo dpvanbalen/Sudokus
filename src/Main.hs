@@ -11,6 +11,7 @@ import Debug.Trace
 main = interact $ pretty . solve . readSudoku
 
 
+
 pretty :: Maybe [Word16] -> String
 pretty Nothing = "mwep"
 pretty (Just gr) = foldl f "\n" (sud gr) where
@@ -20,11 +21,11 @@ pretty (Just gr) = foldl f "\n" (sud gr) where
 
 
 solve :: [Word16] -> Maybe [Word16]
-solve gr = solve' (accelerateStep [gr])
+solve gr = trace (pretty (Just gr)) $ solve' (accelerateStep [gr])
   where
     solve' :: [[Word16]] -> Maybe [Word16]
     solve' [] = Nothing
-    solve' xs = (trace (show (length xs))) $ case find solved xs of
+    solve' xs = (trace (help ( xs))) $ case find solved xs of
       Just solution -> Just solution
       Nothing -> solve' . accelerateStep . concat . map doGuess $ xs
     doGuess :: [Word16] -> [[Word16]]
@@ -40,6 +41,9 @@ solved :: [Word16] -> Bool
 solved = all isOne
 isOne x = testBit x 9
 
+help :: [[Word16]] -> String
+help = show . map (map (map help') . chunkList 9)
+help' x = map (\i -> testBit x (i-1)) [1..9]
 
 readSudoku :: String -> [Word16]
 readSudoku = take 81 . map f where
