@@ -23,6 +23,6 @@ executable sudokuAccelerateStack
                        accelerate-llvm-native,
                        accelerate-llvm-ptx,
                        lens-accelerate
-  ghc-options:         -optl-fuse-ld=gold
+  ghc-options:         -optl-fuse-ld=gold -threaded
   ld-options:          -fuse-ld=gold
 

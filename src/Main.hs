@@ -8,6 +8,7 @@ import AccPrune
 import qualified Data.Array.Accelerate as A
 import qualified Data.Array.Accelerate.LLVM.Native as Native
 import qualified Data.Array.Accelerate.Interpreter as Interpreter
+import qualified Data.Array.Accelerate.LLVM.PTX as PTX
 
 main = interact $ pretty . solve . readSudoku
 
@@ -33,7 +34,7 @@ solve gr = solve' (accelerateStep [gr],[])
     accelerateStep :: [[Word16]] -> [[Word16]]
     accelerateStep xs = let (ys, bools) = accelerateStep' xs in (map snd . filter fst . zip (A.toList bools) . chunkList 81 . A.toList) $ ys
     accelerateStep' :: [[Word16]] -> (A.Array A.DIM3 Word16, A.Array A.DIM1 Bool)
-    accelerateStep' xs = Native.run $ pruneAndCheck $ A.use $ A.fromList (A.Z A.:. length xs A.:. 9 A.:. 9) $ concat xs
+    accelerateStep' xs = PTX.run $ pruneAndCheck $ A.use $ A.fromList (A.Z A.:. length xs A.:. 9 A.:. 9) $ concat xs
 
 solved :: [Word16] -> Bool
 solved = all isOne

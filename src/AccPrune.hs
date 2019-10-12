@@ -6,7 +6,7 @@ import Data.Word
 import Data.Array.Accelerate.Data.Bits
 import Data.Array.Accelerate.Control.Lens
 import qualified Prelude as P
- 
+  
 type Cell = Word16 --bitmap, bits 0 to 8 are numbers and bit 9 represents that there is only one option left.
  
 
