@@ -123,6 +123,9 @@ doubleIndexes i = if popCount i /= 2 then 0 else setBit 0 $ secondBit + (36 - sh
 
 
 
+unindex3 :: Exp DIM3 -> (Exp Int, Exp Int, Exp Int)
+unindex3 ix = let Z :. k :. j :. i = unlift ix  :: Z :. Exp Int :. Exp Int :. Exp Int
+              in  (k, j, i)
 
 unindex4 :: Exp DIM4 -> (Exp Int, Exp Int, Exp Int, Exp Int)
 unindex4 ix = let Z :. l :. k :. j :. i = unlift ix  :: Z :. Exp Int :. Exp Int :. Exp Int :. Exp Int

@@ -39,6 +39,9 @@ solved :: [Word16] -> Bool
 solved = all isOne
 isOne x = testBit x 9
 
+help :: [[Word16]] -> String
+help = show . map (map (map help') . chunkList 9)
+help' x = map (\i -> testBit x (i-1)) [1..9]
 
 readSudoku :: String -> [Word16]
 readSudoku = take 81 . map f where
