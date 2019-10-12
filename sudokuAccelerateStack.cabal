@@ -21,5 +21,8 @@ executable sudokuAccelerateStack
   build-depends:       base >= 4.7 && < 5,
                        accelerate,
                        accelerate-llvm-native,
---                       accelerate-llvm-ptx,
+                       accelerate-llvm-ptx,
                        lens-accelerate
+  ghc-options:         -optl-fuse-ld=gold
+  ld-options:          -fuse-ld=gold
+

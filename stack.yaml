@@ -15,6 +15,6 @@ extra-deps:
   subdirs: 
   - accelerate-llvm
   - accelerate-llvm-native
-    #  - accelerate-llvm-ptx
+  - accelerate-llvm-ptx
 - github: tmcdonell/lens-accelerate
   commit: "b74eb80"

@@ -6,27 +6,26 @@ import Data.List
 import Utils
 import AccPrune
 import qualified Data.Array.Accelerate as A
-import qualified Data.Array.Accelerate.LLVM.Native as A
+import qualified Data.Array.Accelerate.LLVM.Native as Native
+import qualified Data.Array.Accelerate.Interpreter as Interpreter
 
 main = interact $ pretty . solve . readSudoku
 
 
-pretty :: Maybe [Word16] -> String
-pretty Nothing = "mwep"
-pretty (Just gr) = foldl f "\n" (sud gr) where
+pretty :: [[Word16]] -> String
+pretty [] = "mwep"
+pretty grs = concatMap (\gr -> foldl f "\n" (sud gr)) grs where
   sud [] = [] 
   sud xs = take 9 xs : sud (drop 9 xs)
   f s xs = s ++ intercalate " " (map (show . unBitmap) xs) ++ "\n"
 
-
-solve :: [Word16] -> Maybe [Word16]
-solve gr = solve' (accelerateStep [gr])
+-- currently returns a list of possible solutions, in practice this list usually contains only the actual solution. It should not be hard to filter the bad solutions out.
+solve :: [Word16] -> [[Word16]]
+solve gr = solve' (accelerateStep [gr],[])
   where
-    solve' :: [[Word16]] -> Maybe [Word16]
-    solve' [] = Nothing
-    solve' xs = case find solved xs of
-      Just solution -> Just solution
-      Nothing -> solve' . accelerateStep . concat . map doGuess $ xs
+    solve' :: ([[Word16]],[[Word16]]) -> [[Word16]]
+    solve' ([],xs) = xs
+    solve' (todos,xs) = let ys = accelerateStep . concat . map doGuess $ filter (not . solved) todos in solve' (ys,xs ++ filter solved todos)
     doGuess :: [Word16] -> [[Word16]]
     doGuess xs = let i = splitIndex xs in map (\j -> take i xs ++ j : drop (i+1) xs) (splitBits (xs !! i))
     splitIndex :: [Word16] -> Int
@@ -34,7 +33,7 @@ solve gr = solve' (accelerateStep [gr])
     accelerateStep :: [[Word16]] -> [[Word16]]
     accelerateStep xs = let (ys, bools) = accelerateStep' xs in (map snd . filter fst . zip (A.toList bools) . chunkList 81 . A.toList) $ ys
     accelerateStep' :: [[Word16]] -> (A.Array A.DIM3 Word16, A.Array A.DIM1 Bool)
-    accelerateStep' xs = A.run $ pruneAndCheck $ A.use $ A.fromList (A.Z A.:. length xs A.:. 9 A.:. 9) $ concat xs
+    accelerateStep' xs = Native.run $ pruneAndCheck $ A.use $ A.fromList (A.Z A.:. length xs A.:. 9 A.:. 9) $ concat xs
 
 solved :: [Word16] -> Bool
 solved = all isOne

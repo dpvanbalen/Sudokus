@@ -72,6 +72,22 @@ packages:
     subdir: accelerate-llvm-native
     url: https://github.com/AccelerateHS/accelerate-llvm/archive/d7af0a2.tar.gz
 - completed:
+    size: 263955
+    subdir: accelerate-llvm-ptx
+    url: https://github.com/AccelerateHS/accelerate-llvm/archive/d7af0a2.tar.gz
+    cabal-file:
+      size: 6641
+      sha256: c3da24f7a3dc2cadd48b6a1e8b70689e63fd1ce05bf0a4caca5c22e27fff7bea
+    name: accelerate-llvm-ptx
+    version: 1.3.0.0
+    sha256: 61a7787639c3f42d375f305d8a38dd591da64e2ce599825abfd37b1d7ad06fbe
+    pantry-tree:
+      size: 4775
+      sha256: 01fac9a08a474d37ec59a94c131f0dfaa07e932a46b5f5301d95b72c6884cc64
+  original:
+    subdir: accelerate-llvm-ptx
+    url: https://github.com/AccelerateHS/accelerate-llvm/archive/d7af0a2.tar.gz
+- completed:
     size: 7787
     url: https://github.com/tmcdonell/lens-accelerate/archive/b74eb80.tar.gz
     cabal-file:

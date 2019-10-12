@@ -8,16 +8,17 @@ import Data.Array.Accelerate.Control.Lens
 import qualified Prelude as P
  
 type Cell = Word16 --bitmap, bits 0 to 8 are numbers and bit 9 represents that there is only one option left.
-
+ 
 
 -- Returns the pruned list of sudokus, together with a list of bools representing whether the sudoku is inconsistent (contains a field that can't be filled anymore)
 -- TODO check whether this 'check' is sufficient, or we also need a check that there are no 2 identical singles in a line/column/block.
 pruneAndCheck :: Acc (Array DIM3 Cell) -> Acc (Array DIM3 Cell, Array DIM1 Bool) --n*9*9 -> (n*9*9,n)
-pruneAndCheck = finish . pruneGrids' where
+pruneAndCheck = finish . pruneGrids where
   finish :: Acc (Array DIM3 Cell) -> Acc (Array DIM3 Cell, Array DIM1 Bool)
-  finish xs = lift (xs, check xs)
-  check :: Acc (Array DIM3 Cell) -> Acc (Array DIM1 Bool)
-  check = fold1 (&&) . fold1 (&&) . map (/=0)
+  finish xs = lift (xs, zipWith (&&) (check1 xs) (check2 xs))
+  check1, check2 :: Acc (Array DIM3 Cell) -> Acc (Array DIM1 Bool)
+  check1 = fold1 (&&) . fold1 (&&) . map (/=0)
+  check2 = fold1 (&&) . map (\x -> 511 == x.&.511) . fold1 (.|.)
 
 {- gets a list of sudokus (2+1=3dim) (n*9*9)
  -
@@ -57,46 +58,39 @@ pruneGrids xs = mySnd $ awhile cond step ((lift :: Arrays a => (Acc a, Acc a) ->
 pruneGrids' :: Acc (Array DIM3 Cell) -> Acc (Array DIM3 Cell)
 pruneGrids' = mapSingles . fuseSudokus . pruneDoubles . pruneSingles . mapSingles . splitSudokus 
 
-splitSudokus :: Acc (Array DIM3 Cell) -> Acc (Array DIM4 Cell) 
-splitSudokus = {-weirdtransform .-} (\xs -> backpermute (shape xs) permutation xs) . (replicate (constant (Z:.i3:.All:.All:.All))) . map (`clearBit` 9) 
+splitSudokus = weirdtransform . (\xs -> backpermute (shape xs) permutation xs) . (replicate (constant (Z:.i3:.All:.All:.All))) . map (`clearBit` 9) 
 
-permutation :: Exp DIM4 -> Exp DIM4 -- this permutation is a bijection, and its own inverse. This means we can use undef as the default values.
+permutation :: Exp DIM4 -> Exp DIM4 -- this permutation is a bijection, and its own inverse.
 permutation (unindex4 -> (m, n, i, j)) =    if m == 0 then lift $ Z:.0:.n:.i:.j                          -- rows
                                        else if m == 1 then lift $ Z:.1:.n:.j:.i                          -- columns
                                        else {- m == 2 -} let c = 3*i+(j`div`3); d = j`rem`3; c' = 9*(c`div`9) + 3*(c`rem`3) + (c`rem`9)`div`3 in
                                                            lift $ Z:.2:.n:.(c'`div`3):.(3*(c'`rem`3)+d)  -- blocks
 
--- This part was a `smart idea` that I still don't understand why it doesn't work, and haven't quite given up on yet, but whenever I ran it with weirdtransform I got wrong answers.
-{-
-weirdtransform xs = (rep1 xs) ++ (rep1 $ weirdtransform' xs) -- adds another layer, bijecting between numbers and fields.
-unweirdtransform xs = let ys = slice xs (constant (Z:.All:.All:.All:.All:.i0)); 
-                          zs = slice xs (constant (Z:.All:.All:.All:.All:.i1)) in 
-   (rep1 ys) ++ (rep1 (weirdtransform' zs))
+rep1 = replicate (constant (Z:.All:.All:.i1:.All:.All))
+weirdtransform xs = concatOn _3 (rep1 xs) (rep1 $ weirdtransform' xs) -- adds another layer, bijecting between numbers and fields.
+unweirdtransform xs = let ys = slice xs (constant (Z:.All:.All:.i0:.All:.All)); 
+                          zs = slice xs (constant (Z:.All:.All:.i1:.All:.All)) in 
+   zipWith (.&.) ys (weirdtransform' zs)
 weirdtransform' :: Acc (Array DIM4 Cell) -> Acc (Array DIM4 Cell) 
 weirdtransform' xs = let (ones,twos,threes,fours,fives,sixes,sevens,eights,nines) = (f 1,f 2,f 4,f 8,f 16,f 32,f 64,f 128,f 256); --weirdtransform' is also its own inverse, except for bit9
                          f (x :: Exp Word16) = replicate (constant (Z:.All:.All:.All:.i1)) . fold1 (.|.) . A.imap (\(unindex4 -> (_,_,_,i)) y -> if x.&.y == 0 then 0 else setBit 0 i) $ xs;
                            in ones ++ twos ++ threes ++ fours ++ fives ++ sixes ++ sevens ++ eights ++ nines
-                 -}
+                 
 
-pruneSingles :: Acc (Array DIM4 Cell) -> Acc (Array DIM4 Cell)
-pruneSingles xs = let ys = replicate (constant (Z:.All:.All:.All:.i9)) (findSingles xs) in zipWith (\x y -> if testBit x 9 then x else x .&. (complement y)) xs ys
+pruneSingles xs = let ys = replicate (constant (Z:.All:.All:.All:.All:.i9)) (findSingles xs) in zipWith (\x y -> if testBit x 9 then x else x .&. (complement y)) xs ys
 
 -- bit 9 represents a field having only 1 option left, here we .|. all those bits.
-findSingles :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell) -- finds the squares with only 1 possibility
 findSingles = map (`clearBit` 9) . fold1 (.|.) . map (\x -> if testBit x 9 then x else 0)
 
-fuseSudokus :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell)
-fuseSudokus = fold1 (.&.) . transposeOn _1 _4 . transposeOn _1 _3 . transposeOn _1 _2 . (\xs -> backpermute (shape xs) permutation xs) 
+fuseSudokus = fold1 (.&.) . transposeOn _1 _4 . transposeOn _1 _3 . transposeOn _1 _2 . (\xs -> backpermute (shape xs) permutation xs) . unweirdtransform
 
 mapSingles  :: Shape a => Acc (Array a Cell) -> Acc (Array a Cell)
 mapSingles  = map (\x -> if popCount x == 1 then setBit x 9 else x) . map (`clearBit` 9)
 
-pruneDoubles :: Acc (Array DIM4 Cell) -> Acc (Array DIM4 Cell)
-pruneDoubles = (\xs -> let ys = replicate (constant (Z:.All:.All:.All:.i9)) (findDoubles xs) in 
+pruneDoubles = (\xs -> let ys = replicate (constant (Z:.All:.All:.All:.All:.i9)) (findDoubles xs) in 
               zipWith (\x y -> if popCount x <= 2 {-&& x==x.&.y-} then x else x.&.(complement y)) xs ys) . map (`clearBit` 9) 
                  -- part commented out would be a speedup, but only safe if unDoubleIndexes could find all.
 
-findDoubles :: Acc (Array DIM4 Cell) -> Acc (Array DIM3 Cell)
 findDoubles = map unDoubleIndexes . map (\(unlift -> (z1,z2,z3)::(Exp Word64, Exp Word64, Exp Word64)) -> z2 - z3) . fold1 (\(unlift -> (x1,x2,x3)) (unlift -> (y1,y2,y3)) -> 
                  lift (x1.|.y1, x2.|.y2.|.(x1.&.y1), x3.|.y3.|.(x1.&.y2).|.(x2.&.y1))) --(seen at least once, seen at least twice, seen more times)
                    . map (\x -> lift (x,0,0) :: Exp (Word64, Word64, Word64)) . map doubleIndexes
@@ -116,14 +110,13 @@ unDoubleIndexes x = if x == 0 then 0 else (fromIntegral $ unDoubleIndex y)-- .|.
                     if i<30 then setBit (shift x (-21)) 4 else
                     if i<33 then setBit (shift x (-24)) 5 else
                     if i<35 then setBit (shift x (-26)) 6 else
-                                 setBit (setBit 0 8)    7
+                                  setBit (setBit 0 8)    7
   y = countTrailingZeros x
 
 
 
-
 doubleIndexes :: Exp Word16 -> Exp Word64 --given a word, if it has exactly two bits set, compute a bitmask that signifies which two bits are set. Barely doesn't fit in 32 bits :(
-doubleIndexes i = if popCount i /= 2 then 0 else setBit 0 $ secondBit + (45 - shift ((9-firstBit)*(10-firstBit)) (-1))
+doubleIndexes i = if popCount i /= 2 then 0 else setBit 0 $ secondBit + (36 - shift ((9-firstBit)*(8-firstBit)) (-1))
  where
   firstBit = countTrailingZeros i
   secondBit = countTrailingZeros (shift i (-firstBit-1)) 
