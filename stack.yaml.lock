@@ -26,19 +26,19 @@ packages:
   original:
     hackage: nvvm-0.9.0.0
 - completed:
-    size: 446892
-    url: https://github.com/AccelerateHS/accelerate/archive/a7b6853.tar.gz
+    size: 446805
+    url: https://github.com/AccelerateHS/accelerate/archive/d4d19bf.tar.gz
     cabal-file:
-      size: 20056
-      sha256: 60ad0612952645fded4178be6d1069380fadab2940c81b213887793603b072fa
+      size: 20096
+      sha256: 6fc7f4d5bd67281956354c88826e7e2c82aab72230a30a274607c12e9e2d7ce0
     name: accelerate
     version: 1.3.0.0
-    sha256: fbd3d68482a7186b3207064cb3056adb09c3e14eae71b21f2cde60fc806c89ce
+    sha256: 77cff6a646c76081c46e1605077be340de021e04dc789b48e7d3ff7c137aedf9
     pantry-tree:
       size: 13457
-      sha256: 8da0aeeee15e84cb18745324dfd797403cf59cde4e01d34e94e46c193c5066b1
+      sha256: 7025c9c902e45dbc1479ec25b1c6ab665435b142cdffefbd6cb24663d3f21691
   original:
-    url: https://github.com/AccelerateHS/accelerate/archive/a7b6853.tar.gz
+    url: https://github.com/AccelerateHS/accelerate/archive/d4d19bf.tar.gz
 - completed:
     size: 263955
     subdir: accelerate-llvm

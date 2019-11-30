@@ -4,12 +4,16 @@ resolver: lts-11.22
 packages:
 - .
 
+flags:
+  accelerate:
+    debug: true
+
 extra-deps:
 - half-0.3
 - cuda-0.10.1.0
 - nvvm-0.9.0.0
 - github: AccelerateHS/accelerate
-  commit: "a7b6853"
+  commit: "d4d19bf" #commit: "a7b6853"
 - github: AccelerateHS/accelerate-llvm
   commit: "d7af0a2"
   subdirs: 
