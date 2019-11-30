@@ -90,7 +90,7 @@ mapSingles  :: Shape a => Acc (Array a Cell) -> Acc (Array a Cell)
 mapSingles  = map (\x -> if popCount x == 1 then setBit x 9 else x) . map (`clearBit` 9)
 
 pruneDoubles = (\xs -> let ys = replicate (constant (Z:.All:.All:.All:.All:.i9)) (findDoubles xs) in
-              zipWith (\x y -> if popCount x <= 2 {-&& x==x.&.y-} then x else x.&.complement y) xs ys) . map (`clearBit` 9)
+              zipWith (\x y -> if popCount x <= 2 && x==x.&.y then x else x.&.complement y) xs ys) . map (`clearBit` 9)
 
 findDoubles = map unDoubleIndexes . map (\(unlift -> (z1,z2,z3)::(Exp Word64, Exp Word64, Exp Word64)) -> z2 - z3) . fold1 (\(unlift -> (x1,x2,x3)) (unlift -> (y1,y2,y3)) ->
                  lift (x1.|.y1, x2.|.y2.|.(x1.&.y1), x3.|.y3.|.(x1.&.y2).|.(x2.&.y1))) --(seen at least once, seen at least twice, seen more times)
